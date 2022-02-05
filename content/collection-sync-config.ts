@@ -10,17 +10,30 @@ export type CollectionSyncConfigsRecord = Record<
   CollectionSyncConfig | undefined
 >;
 
-export function loadSyncEnabledCollectionIDs(): Set<Zotero.Collection['id']> {
-  const configs = loadSyncConfigs();
-  const collectionIDs = Object.entries(configs)
-    .filter(([id, config]) => Number(id) > 0 && config?.syncEnabled)
-    .map(([id]) => Number(id));
-  return new Set(collectionIDs);
-}
-
 export function loadSyncConfigs(): CollectionSyncConfigsRecord {
   const json = getNoteroPref(NoteroPref.collectionSyncConfigs);
   return parseSyncConfigs(json);
+}
+
+export function loadSyncEnabledCollectionConfigs(): CollectionSyncConfigsRecord {
+  const allConfigs = loadSyncConfigs();
+
+  return Object.entries(allConfigs).reduce(
+    (syncEnabledConfigs: CollectionSyncConfigsRecord, [key, config]) => {
+      const collectionID = Number(key);
+      if (collectionID > 0 && config?.syncEnabled) {
+        syncEnabledConfigs[collectionID] = config;
+      }
+      return syncEnabledConfigs;
+    },
+    {}
+  );
+}
+
+export function loadSyncEnabledCollectionIDs(): Set<Zotero.Collection['id']> {
+  const syncEnabledCollectionConfigs = loadSyncEnabledCollectionConfigs();
+  const collectionIDs = Object.keys(syncEnabledCollectionConfigs).map(Number);
+  return new Set(collectionIDs);
 }
 
 export function saveSyncConfigs(configs: CollectionSyncConfigsRecord): void {
@@ -34,16 +47,16 @@ export function parseSyncConfigs(json: unknown): CollectionSyncConfigsRecord {
     const parsedValue = JSON.parse(json);
     if (!isObject(parsedValue)) return {};
 
-    const configs: CollectionSyncConfigsRecord = {};
-
-    Object.entries(parsedValue)
+    return Object.entries(parsedValue)
       .map(convertKeyToNumber)
       .filter(isCollectionSyncConfigEntry)
-      .forEach(([collectionID, config]) => {
-        configs[collectionID] = config;
-      });
-
-    return configs;
+      .reduce(
+        (configs: CollectionSyncConfigsRecord, [collectionID, config]) => {
+          configs[collectionID] = config;
+          return configs;
+        },
+        {}
+      );
   } catch (error) {
     Zotero.log(`Failed to parse Notero sync configs: ${error}`, 'error');
     return {};

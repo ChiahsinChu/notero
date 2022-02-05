@@ -283,6 +283,34 @@ class Notero {
     const noteroItem = new NoteroItem(item);
     const response = await notion.saveItemToDatabase(noteroItem);
 
+    if (
+      'properties' in response &&
+      'Collections' in response.properties &&
+      'multi_select' in response.properties.Collections
+    ) {
+      const collectionOptions = response.properties.Collections.multi_select;
+      Zotero.log(`saveItemToNotion: ${JSON.stringify(collectionOptions)}`);
+
+      const collection = Zotero.Collections.get([
+        ...loadSyncEnabledCollectionIDs(),
+      ]).find(({ name }) => name === collectionOptions[0].name);
+
+      if (collection) {
+        const configs = loadSyncConfigs();
+        configs[collection.id] = {
+          syncEnabled: configs[collection.id]?.syncEnabled ?? false,
+          notionOptionID: collectionOptions[0].id,
+        };
+        saveSyncConfigs(configs);
+      }
+    }
+
+    /*
+      id: "l3k5b2l3"
+      type: "multi_select"
+      multi_select: [{id: "uuid", name: "Inbox"}]
+     */
+
     await noteroItem.saveNotionTag();
 
     if ('url' in response) {

@@ -167,6 +167,15 @@ export default class Notion {
         buildRequest: () => Notion.buildRichText(item.getAuthors().join('\n')),
       },
       {
+        name: 'Collections',
+        type: 'multi_select',
+        buildRequest: () =>
+          item.getCollections().map(({ name, notionOptionID }) => ({
+            id: notionOptionID,
+            name: Notion.sanitizeSelectOption(name),
+          })),
+      },
+      {
         name: 'DOI',
         type: 'url',
         buildRequest: () => item.getDOI(),

@@ -1,4 +1,6 @@
+import { loadSyncEnabledCollectionConfigs } from './collection-sync-config';
 import Notion from './notion';
+import { buildCollectionFullName } from './utils';
 
 const APA_STYLE = 'bibliography=http://www.zotero.org/styles/apa';
 
@@ -39,6 +41,27 @@ export default class NoteroItem {
       .getCreators()
       .filter(({ creatorTypeID }) => creatorTypeID === primaryCreatorTypeID)
       .map(NoteroItem.formatCreatorName);
+  }
+
+  public getCollections(): { name: string; notionOptionID?: string }[] {
+    const collectionConfigs = loadSyncEnabledCollectionConfigs();
+
+    return Zotero.Collections.get(this.zoteroItem.getCollections()).reduce(
+      (
+        collections: { name: string; notionOptionID?: string }[],
+        collection
+      ) => {
+        const notionOptionID = collectionConfigs[collection.id]?.notionOptionID;
+        collections.push({
+          name: buildCollectionFullName(collection),
+          notionOptionID,
+        });
+        Zotero.log(`collection: ${JSON.stringify(collection)}`);
+        Zotero.log(`collections: ${JSON.stringify(collections)}`);
+        return collections;
+      },
+      []
+    );
   }
 
   public getDOI(): string | null {
